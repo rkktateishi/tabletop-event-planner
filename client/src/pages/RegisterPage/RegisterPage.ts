@@ -4,6 +4,7 @@ import { api, ApiError } from '../../api/client.ts'
 import type { EventDetail } from '../../api/types.ts'
 import { eventPath } from '../../App/App.ts'
 import { formatDate, formatTimeRange } from '../../lib/dates.ts'
+import { mapServerErrors } from '../../lib/serverErrors.ts'
 
 export const EVENT_FULL_MESSAGE = 'Unfortunately this event has already been filled.'
 
@@ -71,8 +72,10 @@ export function useRegisterPage(): RegisterPageViewModel {
       if (err instanceof ApiError && err.status === 409) {
         // The server is the source of truth for capacity.
         setFull(true)
-      } else if (err instanceof ApiError && err.status === 400 && err.errors.PlayerName) {
-        setNameError(err.errors.PlayerName.join(' '))
+      } else if (err instanceof ApiError && err.status === 400) {
+        const { fieldErrors, general } = mapServerErrors(err.errors, { fields: ['playerName'] })
+        setNameError(fieldErrors.playerName ?? null)
+        setSubmitError(general ?? (fieldErrors.playerName ? null : err.message))
       } else {
         setSubmitError((err as Error).message)
       }

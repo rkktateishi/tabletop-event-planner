@@ -3,7 +3,6 @@ export {
   useEventForm,
   toCreateEventRequest,
   isFormComplete,
-  mapApiErrors,
   type EventFormProps,
   type EventFormState,
   type EventFormViewModel,

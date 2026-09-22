@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api, ApiError } from '../../api/client.ts'
 import type { CreateEventRequest, EventDetail, Format, Game, Template } from '../../api/types.ts'
 import { addMinutes, combineDateTime, toDateInput, toTimeInput } from '../../lib/dates.ts'
+import { mapServerErrors } from '../../lib/serverErrors.ts'
 
 export interface EventFormProps {
   onCreated: (event: EventDetail) => void
@@ -98,40 +99,21 @@ export function toCreateEventRequest(form: EventFormState): CreateEventRequest |
   }
 }
 
-/** Server property name → form field. */
-const SERVER_FIELD_TO_FORM: Record<string, keyof EventFormState> = {
-  Name: 'name',
-  Game: 'game',
-  Format: 'format',
-  StartDateTime: 'startTime',
-  EndDateTime: 'endTime',
-  MaxCapacity: 'maxCapacity',
-  Description: 'description',
-}
+/** All form fields, for routing server errors; names that camel-case to one of these map automatically. */
+const FORM_FIELDS = [
+  'name',
+  'game',
+  'template',
+  'format',
+  'date',
+  'startTime',
+  'endTime',
+  'maxCapacity',
+  'description',
+] as const satisfies readonly (keyof EventFormState)[]
 
-export interface MappedApiErrors {
-  fieldErrors: EventFormErrors
-  /** Errors that do not belong to a single field (e.g. a malformed body). */
-  general: string | null
-}
-
-/** Routes server validation errors onto form fields; messages are shown verbatim. */
-export function mapApiErrors(errors: Record<string, string[]>): MappedApiErrors {
-  const fieldErrors: EventFormErrors = {}
-  const general: string[] = []
-
-  for (const [key, messages] of Object.entries(errors)) {
-    const message = messages.join(' ')
-    const field = SERVER_FIELD_TO_FORM[key]
-    if (!field) {
-      general.push(message)
-      continue
-    }
-    fieldErrors[field] = fieldErrors[field] ? `${fieldErrors[field]} ${message}` : message
-  }
-
-  return { fieldErrors, general: general.length ? general.join(' ') : null }
-}
+/** The only server properties whose names differ from the form's: the combined date-times. */
+const SERVER_FIELD_ALIASES = { StartDateTime: 'startTime', EndDateTime: 'endTime' } as const
 
 export function useEventForm({ onCreated }: EventFormProps): EventFormViewModel {
   const [form, setForm] = useState<EventFormState>(initialFormState)
@@ -209,7 +191,7 @@ export function useEventForm({ onCreated }: EventFormProps): EventFormViewModel 
       onCreated(await api.createEvent(request))
     } catch (err) {
       if (err instanceof ApiError && err.status === 400) {
-        const mapped = mapApiErrors(err.errors)
+        const mapped = mapServerErrors(err.errors, { fields: FORM_FIELDS, aliases: SERVER_FIELD_ALIASES })
         setFieldErrors(mapped.fieldErrors)
         setSubmitError(mapped.general ?? (Object.keys(mapped.fieldErrors).length ? null : err.message))
       } else {

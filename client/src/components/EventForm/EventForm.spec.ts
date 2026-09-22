@@ -6,7 +6,6 @@ import {
   endTimeFromTemplate,
   initialFormState,
   isFormComplete,
-  mapApiErrors,
   REQUIRED_FIELDS,
   toCreateEventRequest,
   useEventForm,
@@ -110,28 +109,6 @@ describe('toCreateEventRequest', () => {
   })
 })
 
-describe('mapApiErrors', () => {
-  it('routes server property names onto form fields and joins messages', () => {
-    const { fieldErrors, general } = mapApiErrors({
-      Name: ['Name is required.'],
-      MaxCapacity: ['Capacity is required.', 'Extra.'],
-      EndDateTime: ['End time must be after start time.'],
-    })
-    expect(fieldErrors).toEqual({
-      name: 'Name is required.',
-      maxCapacity: 'Capacity is required. Extra.',
-      endTime: 'End time must be after start time.',
-    })
-    expect(general).toBeNull()
-  })
-
-  it('collects errors that do not belong to a field as general', () => {
-    const { fieldErrors, general } = mapApiErrors({ '': ['The request body is malformed.'] })
-    expect(fieldErrors).toEqual({})
-    expect(general).toBe('The request body is malformed.')
-  })
-})
-
 describe('useEventForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -222,6 +199,7 @@ describe('useEventForm', () => {
       new ApiError(400, 'One or more validation errors occurred.', {
         EndDateTime: ['End time must be after start time.'],
         Format: ['Format does not belong to the selected game.'],
+        MaxCapacity: ['Capacity must be at most 30.'],
       }),
     )
     const { result } = renderHook(() => useEventForm({ onCreated: vi.fn() }))
@@ -229,11 +207,24 @@ describe('useEventForm', () => {
 
     await act(() => result.current.handleSubmit(submit))
 
+    // EndDateTime is aliased to the end-time input; the others camel-case automatically.
     expect(result.current.fieldErrors).toEqual({
       endTime: 'End time must be after start time.',
       format: 'Format does not belong to the selected game.',
+      maxCapacity: 'Capacity must be at most 30.',
     })
     expect(result.current.submitError).toBeNull()
+  })
+
+  it('shows a body-level 400 as a general error alongside field errors', async () => {
+    mockedApi.createEvent.mockRejectedValue(
+      new ApiError(400, 'Invalid', { '': ['The request body is missing or malformed.'], Unknown: ['x'] }),
+    )
+    const { result } = renderHook(() => useEventForm({ onCreated: vi.fn() }))
+    await fillViaTemplate(result)
+    await act(() => result.current.handleSubmit(submit))
+    expect(result.current.fieldErrors).toEqual({})
+    expect(result.current.submitError).toBe('The request body is missing or malformed. x')
   })
 
   it('shows a general error when the 400 has no field errors', async () => {

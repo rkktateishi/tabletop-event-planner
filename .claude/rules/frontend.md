@@ -38,7 +38,7 @@ React can't load `.html` templates, so `.template.tsx` is the template file. Do 
 - **The client checks presence only.** A form exposes `canSubmit` (every required field non-blank after `trim()`), the template disables the submit button with `disabled={!canSubmit || submitting}`, and `handleSubmit` returns early when `canSubmit` is false. List the required fields once (`REQUIRED_FIELDS` in `EventForm.ts`) and derive `canSubmit` from it.
 - **No content rules on the client**: no length, range, ordering, existence or format checks, and no client-written error messages. The API's FluentValidation validators are the single source of truth (see `.claude/rules/backend.md`).
 - Request types are strict (`CreateEventRequest` has no `| null`). The builder (`toCreateEventRequest`) returns `null` while the form is incomplete and a fully typed request otherwise; values are sent as entered (no trimming).
-- On a 400, read `ApiError.errors` (keyed by PascalCase property name) and show each message verbatim under its field via a name map (`SERVER_FIELD_TO_FORM`). Errors with an empty key are shown as a general error.
+- On a 400, pass `ApiError.errors` to `mapServerErrors` from `src/lib/serverErrors.ts`. It camel-cases the server's PascalCase property names automatically; give it `fields` (the form's field names) and `aliases` only for names that differ (`StartDateTime` → `startTime`). Put `fieldErrors` under the inputs and `general` in the form's alert. Never hand-write a property→field map in a component.
 - Templates keep `required` on inputs only for the asterisk; forms are `noValidate` so the browser does not intercept submission.
 - Derived UI state that is not validation (auto-filling end time from a template, default start time) stays in the hook.
 
