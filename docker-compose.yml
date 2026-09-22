@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: tabletop
+      POSTGRES_USER: tabletop
+      POSTGRES_PASSWORD: tabletop
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tabletop -d tabletop"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./server/TabletopEvents.Api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Default: Host=db;Port=5432;Database=tabletop;Username=tabletop;Password=tabletop
+      Store__Location: Local Game Store
+    ports:
+      - "5000:8080"
+
+  web:
+    build: ./client
+    depends_on:
+      - api
+    ports:
+      - "3000:80"
+
+volumes:
+  pgdata:

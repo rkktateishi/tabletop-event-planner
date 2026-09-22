@@ -1,0 +1,16 @@
+.create-event-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.create-event-page__back {
+  align-self: flex-start;
+}
+
+.create-event-page__panel {
+  padding: 24px;
+}

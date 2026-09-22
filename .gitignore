@@ -1,0 +1,16 @@
+# Node
+node_modules/
+client/dist/
+npm-debug.log*
+
+# .NET
+bin/
+obj/
+*.user
+.vs/
+
+# Env / local
+.env
+.env.local
+*.swp
+.DS_Store

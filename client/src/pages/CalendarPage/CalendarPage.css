@@ -1,0 +1,15 @@
+.calendar-page {
+  display: flex;
+  flex-grow: 1;
+  min-height: 640px;
+}
+
+.calendar-page__calendar {
+  flex-grow: 1;
+}
+
+.calendar-page__loading {
+  display: flex;
+  justify-content: center;
+  padding: 64px 0;
+}

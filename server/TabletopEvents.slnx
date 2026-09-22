@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="TabletopEvents.Api.Tests/TabletopEvents.Api.Tests.csproj" />
+  <Project Path="TabletopEvents.Api/TabletopEvents.Api.csproj" />
+</Solution>

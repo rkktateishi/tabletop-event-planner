@@ -1,0 +1,35 @@
+.register-page {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.register-page__loading {
+  display: flex;
+  justify-content: center;
+  padding: 64px 0;
+}
+
+.register-page__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 32px;
+}
+
+.register-page__header {
+  display: flex;
+  flex-direction: column;
+}
+
+.register-page__form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .register-page__panel {
+    padding: 16px;
+  }
+}

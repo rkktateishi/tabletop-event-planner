@@ -1,0 +1,14 @@
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.info-row__icon {
+  display: flex;
+  opacity: 0.7;
+}
+
+.info-row__label {
+  min-width: 72px;
+}

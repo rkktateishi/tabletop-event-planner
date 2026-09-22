@@ -1,0 +1,9 @@
+.event-form__alert {
+  margin-bottom: 16px;
+}
+
+.event-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
