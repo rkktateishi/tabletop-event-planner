@@ -106,6 +106,7 @@ export function EventPage() {
                   component={RouterLink}
                   to={registerPath}
                   variant="outlined"
+                  disabled={event.isFull}
                   startIcon={<HowToRegIcon />}
                 >
                   Register
