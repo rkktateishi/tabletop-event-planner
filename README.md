@@ -100,3 +100,15 @@ Migrations run automatically when the API starts.
 | GET | `/api/events/{id}` | detail incl. `registrationCount`, `isFull`, `location` |
 | POST | `/api/events` | `{ name, game, format, startDateTime, endDateTime, maxCapacity, description }` |
 | POST | `/api/events/{id}/registrations` | `{ playerName }` → 201, **400** with field errors, or **409** when full |
+
+
+# Write-up
+
+## **How did you determine and enforce how many people can attend an event? Where does capacity live, and what happens under concurrent registrations for the last seat?**
+The Capacity of an event is a configurable value when creating an event, a template can populate a default value and is capped at 30 people. The Capacity lives on the event itself, so each one can be customized as necessary. This is enforced when a user registers, validating against capacity before the registration is created, thus if two users were concurrently registered the one arriving later would be rejected and notified that the event is full.
+## **How does your template system work, and what would adding a 4th game (or a non-card game) require?**
+The Templating system is a database table that can be added too. This includes configuration tables to store games and formats allowing someone to add a value directly to the database without a code change.
+## **What did you deliberately cut or fake to stay in the timebox, and what would you build next?**
+Really the only thing faked were the values seeded into the database, the next item that I would build next would be a system to configure the event values: Games, Formats, and Templates. As well as a more dynamic way to set the max capacity overall.
+## **which tools you used and for what, and one example of AI output you rejected or had to fix.**
+I used Claude Code and Fable 5.1 to develop and work on this application. My process was to write an initial specs file that was used to build the application. Then took re-prompted to more structured project layout, cleaning up coding styles and adding rules for future additions and standards for the code.
