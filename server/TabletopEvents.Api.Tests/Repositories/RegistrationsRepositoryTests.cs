@@ -49,7 +49,7 @@ public class RegistrationsRepositoryTests : IDisposable
         var registration = await _repo.AddIfCapacityAsync(_eventId, 2, "Alice", CancellationToken.None);
 
         Assert.NotNull(registration);
-        Assert.Equal(_eventId, registration.EventId);
+        Assert.Equal(_eventId, registration.Event);
         Assert.Equal("Alice", registration.PlayerName);
         Assert.NotEqual(Guid.Empty, registration.Id);
     }

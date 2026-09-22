@@ -22,6 +22,7 @@ export function EventForm(props: EventFormProps) {
     loadError,
     submitError,
     submitting,
+    canSubmit,
     setField,
     handleGameChange,
     handleTemplateChange,
@@ -184,7 +185,7 @@ export function EventForm(props: EventFormProps) {
         </Grid>
 
         <Grid size={12} className="event-form__actions">
-          <Button type="submit" variant="contained" size="large" disabled={submitting}>
+          <Button type="submit" variant="contained" size="large" disabled={!canSubmit || submitting}>
             {submitting ? 'Creating…' : 'Create event'}
           </Button>
         </Grid>

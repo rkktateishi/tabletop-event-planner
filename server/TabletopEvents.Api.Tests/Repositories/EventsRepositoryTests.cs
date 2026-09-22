@@ -53,8 +53,8 @@ public class EventsRepositoryTests : IDisposable
         var evt = NewEvent("Detail", new DateTimeOffset(2026, 10, 1, 18, 0, 0, TimeSpan.Zero), capacity: 2);
         await _repo.AddAsync(evt, CancellationToken.None);
         _db.EventRegistrations.AddRange(
-            new EventRegistration { Id = Guid.NewGuid(), EventId = evt.Id, PlayerName = "A" },
-            new EventRegistration { Id = Guid.NewGuid(), EventId = evt.Id, PlayerName = "B" });
+            new EventRegistration { Id = Guid.NewGuid(), Event = evt.Id, PlayerName = "A" },
+            new EventRegistration { Id = Guid.NewGuid(), Event = evt.Id, PlayerName = "B" });
         await _db.SaveChangesAsync();
 
         var detail = await _repo.GetDetailAsync(evt.Id, CancellationToken.None);

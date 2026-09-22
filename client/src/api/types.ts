@@ -41,16 +41,17 @@ export interface EventDetail extends EventSummary {
 }
 
 /**
- * Sent exactly as the user entered it; blanks become null. The server validates and returns
- * field errors keyed by the PascalCase property name (Name, Game, StartDateTime, …).
+ * Only built once every required field has a value (the form disables submit until then).
+ * The server still validates content and returns field errors keyed by the PascalCase
+ * property name (Name, Game, StartDateTime, …).
  */
 export interface CreateEventRequest {
   name: string
-  game: string | null
-  format: string | null
-  startDateTime: string | null
-  endDateTime: string | null
-  maxCapacity: number | null
+  game: string
+  format: string
+  startDateTime: string
+  endDateTime: string
+  maxCapacity: number
   description: string
 }
 
@@ -60,6 +61,7 @@ export interface RegisterRequest {
 
 export interface Registration {
   id: string
-  eventId: string
+  /** FK to Event */
+  event: string
   playerName: string
 }

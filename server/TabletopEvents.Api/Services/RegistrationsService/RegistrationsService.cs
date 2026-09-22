@@ -39,6 +39,6 @@ public class RegistrationsService(IEventsRepository events, IRegistrationsReposi
         return CreatedAtRoute(
             EventsService.GetByIdRoute,
             new { id = eventId },
-            new RegistrationDto(registration.Id, registration.EventId, registration.PlayerName));
+            new RegistrationDto(registration.Id, registration.Event, registration.PlayerName));
     }
 }

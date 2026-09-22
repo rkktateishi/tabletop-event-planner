@@ -13,6 +13,7 @@ export function RegisterPage() {
     nameError,
     submitError,
     submitting,
+    canSubmit,
     whenLabel,
     eventPath,
     setPlayerName,
@@ -64,7 +65,7 @@ export function RegisterPage() {
               autoFocus
               slotProps={{ htmlInput: { maxLength: 255 } }}
             />
-            <Button type="submit" variant="contained" size="large" disabled={submitting}>
+            <Button type="submit" variant="contained" size="large" disabled={!canSubmit || submitting}>
               {submitting ? 'Registering…' : 'Register'}
             </Button>
           </form>

@@ -5,7 +5,9 @@ import { eventDetail, formats, games, templates } from '../../test/utils.ts'
 import {
   endTimeFromTemplate,
   initialFormState,
+  isFormComplete,
   mapApiErrors,
+  REQUIRED_FIELDS,
   toCreateEventRequest,
   useEventForm,
   type EventFormState,
@@ -64,9 +66,29 @@ describe('endTimeFromTemplate', () => {
   })
 })
 
+describe('isFormComplete', () => {
+  it('is true when every required field has a value', () => {
+    expect(isFormComplete(filledForm())).toBe(true)
+  })
+
+  it('does not require template or description', () => {
+    expect(isFormComplete({ ...filledForm(), template: '', description: '' })).toBe(true)
+  })
+
+  it.each(REQUIRED_FIELDS)('is false when %s is blank', (field) => {
+    expect(isFormComplete({ ...filledForm(), [field]: '' })).toBe(false)
+    expect(isFormComplete({ ...filledForm(), [field]: '   ' })).toBe(false)
+  })
+
+  it('is false for the initial form', () => {
+    expect(isFormComplete(initialFormState())).toBe(false)
+  })
+})
+
 describe('toCreateEventRequest', () => {
-  it('sends filled values with ISO timestamps and does not trim or validate', () => {
+  it('builds a strict request from a complete form without trimming or validating content', () => {
     const request = toCreateEventRequest({ ...filledForm(), name: '  Padded  ' })
+    expect(request).not.toBeNull()
     expect(request).toMatchObject({
       name: '  Padded  ',
       game: 'game-fab',
@@ -74,59 +96,37 @@ describe('toCreateEventRequest', () => {
       maxCapacity: 30,
       description: 'Weekly tournament',
     })
-    expect(new Date(request.startDateTime!)).toEqual(new Date(2026, 8, 25, 18, 0))
-    expect(new Date(request.endDateTime!)).toEqual(new Date(2026, 8, 25, 23, 0))
+    expect(new Date(request!.startDateTime)).toEqual(new Date(2026, 8, 25, 18, 0))
+    expect(new Date(request!.endDateTime)).toEqual(new Date(2026, 8, 25, 23, 0))
   })
 
-  it('sends null for every blank so the server can report what is missing', () => {
-    expect(toCreateEventRequest({ ...initialFormState(), date: '' })).toEqual({
-      name: '',
-      game: null,
-      format: null,
-      startDateTime: null,
-      endDateTime: null,
-      maxCapacity: null,
-      description: '',
-    })
+  it('returns null while a required field is blank', () => {
+    expect(toCreateEventRequest(initialFormState())).toBeNull()
+    expect(toCreateEventRequest({ ...filledForm(), maxCapacity: '' })).toBeNull()
   })
 
   it('passes a non-integer capacity through for the server to reject', () => {
-    expect(toCreateEventRequest({ ...filledForm(), maxCapacity: '2.5' }).maxCapacity).toBe(2.5)
-    expect(toCreateEventRequest({ ...filledForm(), maxCapacity: 'abc' }).maxCapacity).toBeNull()
+    expect(toCreateEventRequest({ ...filledForm(), maxCapacity: '2.5' })?.maxCapacity).toBe(2.5)
   })
 })
 
 describe('mapApiErrors', () => {
   it('routes server property names onto form fields and joins messages', () => {
-    const { fieldErrors, general } = mapApiErrors(
-      { Name: ['Name is required.'], MaxCapacity: ['Capacity is required.', 'Extra.'] },
-      filledForm(),
-    )
-    expect(fieldErrors).toEqual({ name: 'Name is required.', maxCapacity: 'Capacity is required. Extra.' })
+    const { fieldErrors, general } = mapApiErrors({
+      Name: ['Name is required.'],
+      MaxCapacity: ['Capacity is required.', 'Extra.'],
+      EndDateTime: ['End time must be after start time.'],
+    })
+    expect(fieldErrors).toEqual({
+      name: 'Name is required.',
+      maxCapacity: 'Capacity is required. Extra.',
+      endTime: 'End time must be after start time.',
+    })
     expect(general).toBeNull()
   })
 
-  it('shows date-time errors on the time fields when a date is present', () => {
-    const { fieldErrors } = mapApiErrors(
-      { StartDateTime: ['Start time is required.'], EndDateTime: ['End time must be after start time.'] },
-      filledForm(),
-    )
-    expect(fieldErrors).toEqual({
-      startTime: 'Start time is required.',
-      endTime: 'End time must be after start time.',
-    })
-  })
-
-  it('shows date-time errors on the date field when the date is blank', () => {
-    const { fieldErrors } = mapApiErrors(
-      { StartDateTime: ['Start time is required.'], EndDateTime: ['End time is required.'] },
-      { ...filledForm(), date: '' },
-    )
-    expect(fieldErrors).toEqual({ date: 'Start time is required. End time is required.' })
-  })
-
   it('collects errors that do not belong to a field as general', () => {
-    const { fieldErrors, general } = mapApiErrors({ '': ['The request body is malformed.'] }, filledForm())
+    const { fieldErrors, general } = mapApiErrors({ '': ['The request body is malformed.'] })
     expect(fieldErrors).toEqual({})
     expect(general).toBe('The request body is malformed.')
   })
@@ -139,6 +139,16 @@ describe('useEventForm', () => {
     mockedApi.getFormats.mockImplementation(async (game) => formats.filter((f) => f.game === game))
     mockedApi.getTemplates.mockImplementation(async (game) => templates.filter((t) => t.game === game))
   })
+
+  /** Drives the hook to a complete form via a game + template selection and a name. */
+  async function fillViaTemplate(result: { current: ReturnType<typeof useEventForm> }) {
+    act(() => result.current.handleGameChange('game-fab'))
+    await waitFor(() => expect(result.current.templates).toHaveLength(1))
+    act(() => {
+      result.current.setField('name', 'Friday Night CC')
+      result.current.handleTemplateChange('tpl-fab-cc')
+    })
+  }
 
   it('loads games on mount and formats/templates for the chosen game', async () => {
     const { result } = renderHook(() => useEventForm({ onCreated: vi.fn() }))
@@ -174,16 +184,29 @@ describe('useEventForm', () => {
     expect(result.current.form.endTime).toBe('17:30')
   })
 
-  it('submits the form as entered and reports the created event', async () => {
+  it('disables submit until every required field is filled', async () => {
+    const { result } = renderHook(() => useEventForm({ onCreated: vi.fn() }))
+    expect(result.current.canSubmit).toBe(false)
+
+    await fillViaTemplate(result)
+    expect(result.current.canSubmit).toBe(true)
+
+    act(() => result.current.setField('name', '   '))
+    expect(result.current.canSubmit).toBe(false)
+  })
+
+  it('ignores a submit while the form is incomplete', async () => {
+    const { result } = renderHook(() => useEventForm({ onCreated: vi.fn() }))
+    await act(() => result.current.handleSubmit(submit))
+    expect(mockedApi.createEvent).not.toHaveBeenCalled()
+    expect(result.current.fieldErrors).toEqual({})
+  })
+
+  it('submits a complete form and reports the created event', async () => {
     mockedApi.createEvent.mockResolvedValue(eventDetail)
     const onCreated = vi.fn()
     const { result } = renderHook(() => useEventForm({ onCreated }))
-    act(() => result.current.handleGameChange('game-fab'))
-    await waitFor(() => expect(result.current.templates).toHaveLength(1))
-    act(() => {
-      result.current.setField('name', 'Friday Night CC')
-      result.current.handleTemplateChange('tpl-fab-cc')
-    })
+    await fillViaTemplate(result)
 
     await act(() => result.current.handleSubmit(submit))
 
@@ -194,23 +217,21 @@ describe('useEventForm', () => {
     expect(result.current.submitting).toBe(false)
   })
 
-  it('submits an empty form without client-side checks and shows the server field errors', async () => {
+  it('shows server field errors for a complete but invalid form', async () => {
     mockedApi.createEvent.mockRejectedValue(
       new ApiError(400, 'One or more validation errors occurred.', {
-        Name: ['Name is required.'],
-        Game: ['Select a game.'],
-        MaxCapacity: ['Capacity is required.'],
+        EndDateTime: ['End time must be after start time.'],
+        Format: ['Format does not belong to the selected game.'],
       }),
     )
     const { result } = renderHook(() => useEventForm({ onCreated: vi.fn() }))
+    await fillViaTemplate(result)
 
     await act(() => result.current.handleSubmit(submit))
 
-    expect(mockedApi.createEvent).toHaveBeenCalledWith(expect.objectContaining({ name: '', game: null }))
     expect(result.current.fieldErrors).toEqual({
-      name: 'Name is required.',
-      game: 'Select a game.',
-      maxCapacity: 'Capacity is required.',
+      endTime: 'End time must be after start time.',
+      format: 'Format does not belong to the selected game.',
     })
     expect(result.current.submitError).toBeNull()
   })
@@ -218,6 +239,7 @@ describe('useEventForm', () => {
   it('shows a general error when the 400 has no field errors', async () => {
     mockedApi.createEvent.mockRejectedValue(new ApiError(400, 'Bad request', {}))
     const { result } = renderHook(() => useEventForm({ onCreated: vi.fn() }))
+    await fillViaTemplate(result)
     await act(() => result.current.handleSubmit(submit))
     expect(result.current.submitError).toBe('Bad request')
   })
@@ -225,6 +247,7 @@ describe('useEventForm', () => {
   it('surfaces non-validation failures as a general error', async () => {
     mockedApi.createEvent.mockRejectedValue(new Error('network down'))
     const { result } = renderHook(() => useEventForm({ onCreated: vi.fn() }))
+    await fillViaTemplate(result)
     await act(() => result.current.handleSubmit(submit))
     expect(result.current.submitError).toBe('network down')
     expect(result.current.fieldErrors).toEqual({})
@@ -234,6 +257,7 @@ describe('useEventForm', () => {
     mockedApi.createEvent.mockRejectedValueOnce(new ApiError(400, 'Invalid', { Name: ['Name is required.'] }))
     mockedApi.createEvent.mockResolvedValueOnce(eventDetail)
     const { result } = renderHook(() => useEventForm({ onCreated: vi.fn() }))
+    await fillViaTemplate(result)
 
     await act(() => result.current.handleSubmit(submit))
     expect(result.current.fieldErrors.name).toBe('Name is required.')

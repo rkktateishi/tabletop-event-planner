@@ -61,8 +61,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             b.ToTable("EventRegistrations");
             b.HasKey(x => x.Id);
             b.Property(x => x.PlayerName).HasMaxLength(255).IsRequired();
-            b.HasOne<Event>().WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
-            b.HasIndex(x => x.EventId);
+            b.HasOne<Event>().WithMany().HasForeignKey(x => x.Event).OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(x => x.Event);
         });
 
         SeedData.Apply(modelBuilder);

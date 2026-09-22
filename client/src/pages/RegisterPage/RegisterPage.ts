@@ -18,6 +18,8 @@ export interface RegisterPageViewModel {
   nameError: string | null
   submitError: string | null
   submitting: boolean
+  /** True once a name has been entered; the Register button is disabled otherwise. */
+  canSubmit: boolean
   whenLabel: string
   eventPath: string
   setPlayerName: (name: string) => void
@@ -53,9 +55,12 @@ export function useRegisterPage(): RegisterPageViewModel {
     }
   }, [id])
 
-  // No client-side validation: submit what was typed and show whatever the server says.
+  const canSubmit = playerName.trim() !== ''
+
+  // Presence is checked here (to enable the button); content rules and messages come from the server.
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (!canSubmit || submitting) return
     setSubmitError(null)
     setNameError(null)
     setSubmitting(true)
@@ -94,6 +99,7 @@ export function useRegisterPage(): RegisterPageViewModel {
     nameError,
     submitError,
     submitting,
+    canSubmit,
     whenLabel: event ? `${formatDate(event.startDateTime)}, ${formatTimeRange(event.startDateTime, event.endDateTime)}` : '',
     eventPath: eventPath(id),
     setPlayerName,

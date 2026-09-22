@@ -22,7 +22,7 @@ public class EventsRepository(AppDbContext db) : IEventsRepository
             join g in db.Games on e.Game equals g.Id
             join f in db.Formats on e.Format equals f.Id
             where e.Id == id
-            let count = db.EventRegistrations.Count(r => r.EventId == e.Id)
+            let count = db.EventRegistrations.Count(r => r.Event == e.Id)
             select new EventDetailDto(
                 e.Id,
                 e.Name,

@@ -33,11 +33,12 @@ React can't load `.html` templates, so `.template.tsx` is the template file. Do 
 - All HTTP goes through `src/api/client.ts` (`api.*`). DTO types live in `src/api/types.ts` and mirror the API's JSON exactly (FKs are `game` / `format`, not `gameId`).
 - Routes and path builders live in `src/App/App.ts` (`routes`, `eventPath()`, `registerPath()`). Never hard-code `/events/...` strings elsewhere.
 
-## Validation: the server owns it
+## Validation: presence on the client, rules on the server
 
-- **No client-side validation.** Forms do not check required fields, lengths, ranges or ordering before submitting. The API's FluentValidation validators are the single source of truth (see `.claude/rules/backend.md`).
-- On submit, convert the form to the request exactly as entered: strings as typed (no trimming), blank selects / dates / numbers as `null`. See `toCreateEventRequest` in `EventForm.ts`.
-- On a 400, read `ApiError.errors` (keyed by PascalCase property name) and show each message under its field. A hook may **route** an error to a different field for display (e.g. `StartDateTime` → the date input when the date is blank) but never rewrites or invents messages. Errors with an empty key are shown as a general error.
+- **The client checks presence only.** A form exposes `canSubmit` (every required field non-blank after `trim()`), the template disables the submit button with `disabled={!canSubmit || submitting}`, and `handleSubmit` returns early when `canSubmit` is false. List the required fields once (`REQUIRED_FIELDS` in `EventForm.ts`) and derive `canSubmit` from it.
+- **No content rules on the client**: no length, range, ordering, existence or format checks, and no client-written error messages. The API's FluentValidation validators are the single source of truth (see `.claude/rules/backend.md`).
+- Request types are strict (`CreateEventRequest` has no `| null`). The builder (`toCreateEventRequest`) returns `null` while the form is incomplete and a fully typed request otherwise; values are sent as entered (no trimming).
+- On a 400, read `ApiError.errors` (keyed by PascalCase property name) and show each message verbatim under its field via a name map (`SERVER_FIELD_TO_FORM`). Errors with an empty key are shown as a general error.
 - Templates keep `required` on inputs only for the asterisk; forms are `noValidate` so the browser does not intercept submission.
 - Derived UI state that is not validation (auto-filling end time from a template, default start time) stays in the hook.
 
@@ -63,7 +64,7 @@ React can't load `.html` templates, so `.template.tsx` is the template file. Do 
 - Mock navigation with `vi.mock('react-router-dom', …)` overriding only `useNavigate`.
 - Test hooks with `renderHook` + `act` / `waitFor`; assert on the view model, not on DOM internals.
 - Render templates with `createElement(Component, props)` and query by role/text from `@testing-library/react`.
-- Cover: happy path, that an empty form still submits (no client checks), API error mapping (400 field errors routed to fields, 404, 409), and any derived-value edge cases (e.g. `spotsLeft` never negative).
+- Cover: happy path, `canSubmit` false until required fields are filled and submit ignored while incomplete, API error mapping (400 field errors routed to fields, 404, 409), and any derived-value edge cases (e.g. `spotsLeft` never negative).
 
 ## Shared code outside components
 

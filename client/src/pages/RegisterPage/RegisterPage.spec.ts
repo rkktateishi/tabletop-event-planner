@@ -42,25 +42,42 @@ describe('useRegisterPage', () => {
     expect(result.current.loadError).toBe('Event not found.')
   })
 
-  it('submits a blank name to the server and shows its validation message', async () => {
+  it('disables submit until a name is entered and ignores submits while blank', async () => {
+    mockedApi.getEvent.mockResolvedValue(eventDetail)
+    const { result } = renderPage()
+    await waitFor(() => expect(result.current.status).toBe('open'))
+    expect(result.current.canSubmit).toBe(false)
+
+    act(() => result.current.setPlayerName('   '))
+    expect(result.current.canSubmit).toBe(false)
+    await act(() => result.current.handleSubmit(submitEvent))
+    expect(mockedApi.registerForEvent).not.toHaveBeenCalled()
+
+    act(() => result.current.setPlayerName('Alice'))
+    expect(result.current.canSubmit).toBe(true)
+  })
+
+  it('shows the server validation message for a name it rejects', async () => {
     mockedApi.getEvent.mockResolvedValue(eventDetail)
     mockedApi.registerForEvent.mockRejectedValue(
-      new ApiError(400, 'One or more validation errors occurred.', { PlayerName: ['Please enter your name.'] }),
+      new ApiError(400, 'One or more validation errors occurred.', {
+        PlayerName: ['Name must be 255 characters or fewer.'],
+      }),
     )
     const { result } = renderPage()
     await waitFor(() => expect(result.current.status).toBe('open'))
 
-    act(() => result.current.setPlayerName('   '))
+    act(() => result.current.setPlayerName('x'.repeat(300)))
     await act(() => result.current.handleSubmit(submitEvent))
 
-    expect(mockedApi.registerForEvent).toHaveBeenCalledWith('evt-1', '   ')
-    expect(result.current.nameError).toBe('Please enter your name.')
+    expect(mockedApi.registerForEvent).toHaveBeenCalledWith('evt-1', 'x'.repeat(300))
+    expect(result.current.nameError).toBe('Name must be 255 characters or fewer.')
     expect(result.current.status).toBe('open')
   })
 
   it('registers the name as typed and moves to the registered state', async () => {
     mockedApi.getEvent.mockResolvedValue(eventDetail)
-    mockedApi.registerForEvent.mockResolvedValue({ id: 'r1', eventId: 'evt-1', playerName: 'Alice' })
+    mockedApi.registerForEvent.mockResolvedValue({ id: 'r1', event: 'evt-1', playerName: 'Alice' })
     const { result } = renderPage()
     await waitFor(() => expect(result.current.status).toBe('open'))
 
@@ -75,14 +92,14 @@ describe('useRegisterPage', () => {
     mockedApi.getEvent.mockResolvedValue(eventDetail)
     mockedApi.registerForEvent
       .mockRejectedValueOnce(new ApiError(400, 'Invalid', { PlayerName: ['Please enter your name.'] }))
-      .mockResolvedValueOnce({ id: 'r1', eventId: 'evt-1', playerName: 'Bob' })
+      .mockResolvedValueOnce({ id: 'r1', event: 'evt-1', playerName: 'Bob' })
     const { result } = renderPage()
     await waitFor(() => expect(result.current.status).toBe('open'))
 
+    act(() => result.current.setPlayerName('Bob'))
     await act(() => result.current.handleSubmit(submitEvent))
     expect(result.current.nameError).toBe('Please enter your name.')
 
-    act(() => result.current.setPlayerName('Bob'))
     await act(() => result.current.handleSubmit(submitEvent))
     expect(result.current.nameError).toBeNull()
     expect(result.current.status).toBe('registered')

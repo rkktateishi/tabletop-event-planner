@@ -26,11 +26,13 @@ export interface EventFormViewModel {
   games: Game[]
   formats: Format[]
   templates: Template[]
-  /** Field errors as returned by the server, routed to form fields. */
+  /** Field errors as returned by the server. */
   fieldErrors: EventFormErrors
   loadError: string | null
   submitError: string | null
   submitting: boolean
+  /** True once every required field has a value; the submit button is disabled otherwise. */
+  canSubmit: boolean
   setField: <K extends keyof EventFormState>(key: K, value: EventFormState[K]) => void
   handleGameChange: (game: string) => void
   handleTemplateChange: (templateId: string) => void
@@ -39,6 +41,17 @@ export interface EventFormViewModel {
 }
 
 export const DEFAULT_START_TIME = '18:00'
+
+/** Fields that must be filled before the form can be submitted. Template and description are optional. */
+export const REQUIRED_FIELDS = [
+  'name',
+  'game',
+  'format',
+  'date',
+  'startTime',
+  'endTime',
+  'maxCapacity',
+] as const satisfies readonly (keyof EventFormState)[]
 
 export const initialFormState = (today: Date = new Date()): EventFormState => ({
   name: '',
@@ -59,24 +72,33 @@ export function endTimeFromTemplate(date: string, startTime: string, template?: 
   return start ? toTimeInput(addMinutes(start, template.defaultDurationMinutes)) : null
 }
 
+/** Presence check only: every required field has a non-blank value. Content rules live on the server. */
+export function isFormComplete(form: EventFormState): boolean {
+  return REQUIRED_FIELDS.every((field) => form[field].trim() !== '')
+}
+
 /**
- * Converts the form into the API request without validating it: blanks become null so the
- * server can report exactly which fields are missing.
+ * Builds the API request from a complete form, or returns null when a required field is still
+ * blank (or the date/time inputs cannot be combined). Values are sent as entered; the server
+ * validates their content.
  */
-export function toCreateEventRequest(form: EventFormState): CreateEventRequest {
-  const capacity = form.maxCapacity.trim() === '' ? null : Number(form.maxCapacity)
+export function toCreateEventRequest(form: EventFormState): CreateEventRequest | null {
+  if (!isFormComplete(form)) return null
+  const start = combineDateTime(form.date, form.startTime)
+  const end = combineDateTime(form.date, form.endTime)
+  if (!start || !end) return null
   return {
     name: form.name,
-    game: form.game || null,
-    format: form.format || null,
-    startDateTime: combineDateTime(form.date, form.startTime)?.toISOString() ?? null,
-    endDateTime: combineDateTime(form.date, form.endTime)?.toISOString() ?? null,
-    maxCapacity: capacity !== null && Number.isFinite(capacity) ? capacity : null,
+    game: form.game,
+    format: form.format,
+    startDateTime: start.toISOString(),
+    endDateTime: end.toISOString(),
+    maxCapacity: Number(form.maxCapacity),
     description: form.description,
   }
 }
 
-/** Server property name → form field. Date/time errors are routed in mapApiErrors. */
+/** Server property name → form field. */
 const SERVER_FIELD_TO_FORM: Record<string, keyof EventFormState> = {
   Name: 'name',
   Game: 'game',
@@ -93,18 +115,14 @@ export interface MappedApiErrors {
   general: string | null
 }
 
-/**
- * Routes server validation errors onto form fields. The server validates the combined
- * StartDateTime / EndDateTime; when the date input is blank those errors are shown on the date field.
- */
-export function mapApiErrors(errors: Record<string, string[]>, form: EventFormState): MappedApiErrors {
+/** Routes server validation errors onto form fields; messages are shown verbatim. */
+export function mapApiErrors(errors: Record<string, string[]>): MappedApiErrors {
   const fieldErrors: EventFormErrors = {}
   const general: string[] = []
 
   for (const [key, messages] of Object.entries(errors)) {
     const message = messages.join(' ')
-    let field = SERVER_FIELD_TO_FORM[key]
-    if ((key === 'StartDateTime' || key === 'EndDateTime') && !form.date) field = 'date'
+    const field = SERVER_FIELD_TO_FORM[key]
     if (!field) {
       general.push(message)
       continue
@@ -177,17 +195,21 @@ export function useEventForm({ onCreated }: EventFormProps): EventFormViewModel 
       endTime: endTimeFromTemplate(prev.date, startTime, selectedTemplate) ?? prev.endTime,
     }))
 
-  // No client-side validation: always submit and let the server decide.
+  const canSubmit = isFormComplete(form)
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    const request = toCreateEventRequest(form)
+    if (!request || submitting) return
+
     setSubmitError(null)
     setFieldErrors({})
     setSubmitting(true)
     try {
-      onCreated(await api.createEvent(toCreateEventRequest(form)))
+      onCreated(await api.createEvent(request))
     } catch (err) {
       if (err instanceof ApiError && err.status === 400) {
-        const mapped = mapApiErrors(err.errors, form)
+        const mapped = mapApiErrors(err.errors)
         setFieldErrors(mapped.fieldErrors)
         setSubmitError(mapped.general ?? (Object.keys(mapped.fieldErrors).length ? null : err.message))
       } else {
@@ -207,6 +229,7 @@ export function useEventForm({ onCreated }: EventFormProps): EventFormViewModel 
     loadError,
     submitError,
     submitting,
+    canSubmit,
     setField,
     handleGameChange,
     handleTemplateChange,

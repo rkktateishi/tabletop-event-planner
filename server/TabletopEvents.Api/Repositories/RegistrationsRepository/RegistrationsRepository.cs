@@ -9,7 +9,7 @@ namespace TabletopEvents.Api.Repositories.Registrations;
 public class RegistrationsRepository(AppDbContext db) : IRegistrationsRepository
 {
     public Task<int> CountForEventAsync(Guid eventId, CancellationToken ct) =>
-        db.EventRegistrations.CountAsync(r => r.EventId == eventId, ct);
+        db.EventRegistrations.CountAsync(r => r.Event == eventId, ct);
 
     public async Task<EventRegistration?> AddIfCapacityAsync(Guid eventId, int maxCapacity, string playerName, CancellationToken ct)
     {
@@ -30,7 +30,7 @@ public class RegistrationsRepository(AppDbContext db) : IRegistrationsRepository
                 var entity = new EventRegistration
                 {
                     Id = Guid.NewGuid(),
-                    EventId = eventId,
+                    Event = eventId,
                     PlayerName = playerName,
                 };
                 db.EventRegistrations.Add(entity);
