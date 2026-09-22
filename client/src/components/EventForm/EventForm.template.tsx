@@ -167,7 +167,7 @@ export function EventForm(props: EventFormProps) {
             helperText={fieldErrors.maxCapacity}
             required
             fullWidth
-            slotProps={{ htmlInput: { min: 1, step: 1 } }}
+            slotProps={{ htmlInput: { min: 1, max: 30, step: 1 } }}
           />
         </Grid>
 

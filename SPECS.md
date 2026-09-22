@@ -22,7 +22,7 @@
 The primary view will be a Calendar view that will display all currently created events, as well as a button that allows the organizer to create new ones. 
 
 **2. Event creation**
-The event organizer can create an event. The Event includes a Name, a Game (dropdown) with Template (see Feature 3), Format (dropdown), Date (date selector), Start/End Time (time selectors), Player Capacity and Description. These events are stored in the database. After selecting a Game the Formats are filtered by the selected Game.
+The event organizer can create an event. The Event includes a Name, a Game (dropdown) with Template (see Feature 3), Format (dropdown), Date (date selector), Start/End Time (time selectors), Player Capacity and Description. These events are stored in the database. After selecting a Game the Formats are filtered by the selected Game. The Maximum Capacity of an Event is 30.
 
 **3. Game types & templates**
 The app will currently support 3 game types: **Magic: The Gathering**, **Flesh and Blood**, and **Lorcana**. When selecting a Game Type the organizer can also select a template for the given game type. This template includes default values for Format, Player Capacity and Duration. These templates are stored in the databse, though no UI is available to create them currently.

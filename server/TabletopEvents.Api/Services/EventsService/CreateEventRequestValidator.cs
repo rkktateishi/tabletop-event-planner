@@ -48,7 +48,8 @@ public class CreateEventRequestValidator : AbstractValidator<CreateEventRequest>
         RuleFor(x => x.MaxCapacity)
             .Cascade(CascadeMode.Stop)
             .NotNull().WithMessage("Capacity is required.")
-            .GreaterThanOrEqualTo(1).WithMessage("Capacity must be at least 1.");
+            .GreaterThanOrEqualTo(1).WithMessage("Capacity must be at least 1.")
+            .LessThanOrEqualTo(30).WithMessage("Capacity must be at most 30.");
     }
 
     private static bool HasValue(Guid? id) => id is { } value && value != Guid.Empty;
